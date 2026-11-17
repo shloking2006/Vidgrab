@@ -110,37 +110,102 @@ $("paste").onclick = async () => {
   catch { setStatus("Your browser blocked clipboard access. Paste with Ctrl+V instead.", "err"); }
 };
 
+
 $("f").onsubmit = async e => {
-  e.preventDefault();
-  const url = $("url").value.trim();
-  $("card").classList.remove("show");
-  setStatus("Looking up the video…");
-  $("go").disabled = true;
-  try {
-    const r = await fetch("/api/info", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ url }) });
-    const d = await r.json();
-    if (!r.ok) throw new Error(d.error || "Something went wrong.");
-    currentUrl = url;
-    $("title").textContent = d.title;
-    $("meta").textContent = [d.uploader, fmtDuration(d.duration)].filter(Boolean).join(" • ");
-    $("thumb").src = d.thumbnail || "";
-    $("thumb").style.display = d.thumbnail ? "" : "none";
-    $("chips").replaceChildren();
-    if (d.direct) {
-      currentLinks = d.links;
-      if (!d.links.length) throw new Error("This link has no single-file download. Use the Docker version of the site (see README).");
-      d.links.forEach((l, i) => addChip(String(i), l.height ? l.height + "p" : "Original", i === 0));
-    } else {
-      currentLinks = null;
-      addChip("best", "Best", true);
-      d.heights.forEach(h => addChip(String(h), h + "p", false));
-      addChip("audio", d.ffmpeg ? "Audio (MP3)" : "Audio only", false);
+    e.preventDefault();
+
+    const url = $("url").value.trim();
+
+    $("card").classList.remove("show");
+    setStatus("Looking up the video...");
+    $("go").disabled = true;
+
+    try {
+        const r = await fetch("/api/info", {
+            method: "POST",
+            headers: {
+                "Content-Type": "application/json",
+                "Accept": "application/json"
+            },
+            body: JSON.stringify({ url })
+        });
+
+        const contentType = r.headers.get("content-type") || "";
+
+        if (!contentType.includes("application/json")) {
+            const responseText = await r.text();
+
+            console.error("Server response:", responseText);
+
+            throw new Error(
+                `Server error (${r.status}). Check your Flask/Vercel logs.`
+            );
+        }
+
+        const d = await r.json();
+
+        if (!r.ok) {
+            throw new Error(d.error || "Something went wrong.");
+        }
+
+        currentUrl = url;
+
+        $("title").textContent = d.title || "Untitled";
+        $("meta").textContent = [
+            d.uploader,
+            fmtDuration(d.duration)
+        ].filter(Boolean).join(" • ");
+
+        $("thumb").src = d.thumbnail || "";
+        $("thumb").style.display = d.thumbnail ? "" : "none";
+
+        $("chips").replaceChildren();
+
+        if (d.direct) {
+            currentLinks = d.links || [];
+
+            if (!currentLinks.length) {
+                throw new Error(
+                    "No direct download links found for this video."
+                );
+            }
+
+            d.links.forEach((l, i) => {
+                addChip(
+                    String(i),
+                    l.height ? l.height + "p" : "Original",
+                    i === 0
+                );
+            });
+
+        } else {
+            currentLinks = null;
+
+            addChip("best", "Best", true);
+
+            (d.heights || []).forEach(h => {
+                addChip(String(h), h + "p", false);
+            });
+
+            addChip(
+                "audio",
+                d.ffmpeg ? "Audio (MP3)" : "Audio only",
+                false
+            );
+        }
+
+        $("card").classList.add("show");
+        setStatus("");
+
+    } catch (err) {
+        console.error("Video lookup error:", err);
+        setStatus(err.message || "Unable to process this video.", "err");
+
+    } finally {
+        $("go").disabled = false;
     }
-    $("card").classList.add("show");
-    setStatus("");
-  } catch (err) { setStatus(err.message, "err"); }
-  finally { $("go").disabled = false; }
 };
+
 
 $("dl").onclick = async () => {
   const q = document.querySelector('input[name="q"]:checked').value;
