@@ -12,7 +12,7 @@ from urllib.parse import quote, urlparse
 import yt_dlp
 from flask import Flask, jsonify, request, send_file, send_from_directory
 
-app = Flask(__name__)
+app = Flask(_name_)
 
 HAS_FFMPEG = shutil.which("ffmpeg") is not None
 # On Vercel the function cannot stream large files or run ffmpeg, so we hand the browser direct links.
@@ -53,25 +53,9 @@ def check_url(url):
 
 
 def ydl_base():
-    opts = {
-        "quiet": True, 
-        "no_warnings": True, 
-        "noplaylist": True, 
-        "socket_timeout": 20,
-        "extract_flat": False,
-        "prefer_free_formats": True,
-        # Prioritize MP4 video + M4A audio for best compatibility
-        "format_sort": ["bv[ext=mp4]+ba[ext=m4a]/b[ext=mp4]/ba/b", "br", "dai_score", "hasvid", "lang"],
-    }
-    
-    # POINT TO YOUR COOKIE FILE HERE
-    cookie_file_path = "cookies.txt" 
-    
-    if os.path.exists(cookie_file_path):
-        opts["cookiefile"] = cookie_file_path
-    else:
-        print(f"Warning: {cookie_file_path} not found. YouTube might block the request.")
-        
+    opts = {"quiet": True, "no_warnings": True, "noplaylist": True, "socket_timeout": 20}
+    if COOKIES_FILE:
+        opts["cookiefile"] = COOKIES_FILE
     return opts
 
 
@@ -189,10 +173,10 @@ def download():
 
 @app.get("/")
 def home():
-    return send_from_directory(Path(__file__).parent / "public", "index.html")
+    return send_from_directory(Path(_file_).parent / "public", "index.html")
 
 
-if __name__ == "__main__":
+if _name_ == "_main_":
     if not HAS_FFMPEG:
         print("ffmpeg not found: only pre-merged formats (often lower quality) and native audio.")
     app.run(host="127.0.0.1", port=int(os.environ.get("PORT", "5000")), threaded=True)
