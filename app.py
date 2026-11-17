@@ -60,21 +60,18 @@ def ydl_base():
         "socket_timeout": 20,
         "extract_flat": False,
         "prefer_free_formats": True,
-        # This format string prioritizes MP4 video + M4A audio for best compatibility
+        # Prioritize MP4 video + M4A audio for best compatibility
         "format_sort": ["bv[ext=mp4]+ba[ext=m4a]/b[ext=mp4]/ba/b", "br", "dai_score", "hasvid", "lang"],
     }
     
-    # If a cookies file is provided via env var, use it
-    if COOKIES_FILE and os.path.exists(COOKIES_FILE):
-        opts["cookiefile"] = COOKIES_FILE
+    # POINT TO YOUR COOKIE FILE HERE
+    cookie_file_path = "cookies.txt" 
+    
+    if os.path.exists(cookie_file_path):
+        opts["cookiefile"] = cookie_file_path
     else:
-        # Fallback: Try to grab cookies from Chrome automatically
-        # If you use Firefox/Edge/Safari, change "chrome" to "firefox"/"edge"/"safari"
-        try:
-            opts["cookies_from_browser"] = ("chrome", None)
-        except Exception:
-            pass
-            
+        print(f"Warning: {cookie_file_path} not found. YouTube might block the request.")
+        
     return opts
 
 
