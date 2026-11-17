@@ -1,0 +1,172 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Vidgrab – download a video from a link</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,400;12..96,600;12..96,800&display=swap" rel="stylesheet">
+<style>
+:root{
+  --bg:#e6edf5; --ink:#0f2240; --muted:#51627c; --panel:#ffffff;
+  --line:#c3d0e0; --accent:#2749ff; --accent-ink:#ffffff; --err:#b3261e; --ok:#13693a;
+}
+@media (prefers-color-scheme:dark){
+  :root{--bg:#0d1626; --ink:#e8eefb; --muted:#93a3be; --panel:#15223a;
+        --line:#2a3b5c; --accent:#7f98ff; --accent-ink:#0d1626; --err:#ff8a80; --ok:#6fd49b;}
+}
+*{box-sizing:border-box}
+html{font-family:"Bricolage Grotesque",system-ui,-apple-system,"Segoe UI",sans-serif}
+body{margin:0;background:var(--bg);color:var(--ink);min-height:100vh;
+     padding:max(24px,env(safe-area-inset-top)) 20px max(24px,env(safe-area-inset-bottom))}
+main{max-width:720px;margin:0 auto;padding-top:6vh}
+h1{font-size:clamp(2.6rem,9vw,5rem);line-height:.95;font-weight:800;letter-spacing:-.03em;margin:0 0 14px}
+.lede{color:var(--muted);font-size:1.1rem;max-width:46ch;margin:0 0 32px;line-height:1.5}
+form{display:flex;gap:0;border:2px solid var(--ink);border-radius:14px;background:var(--panel);overflow:hidden}
+input[type=url]{flex:1;min-width:0;border:0;background:transparent;color:var(--ink);
+  font:inherit;font-size:1.05rem;padding:18px 18px;outline:none}
+input::placeholder{color:var(--muted)}
+form:focus-within{outline:3px solid var(--accent);outline-offset:2px}
+button{font:inherit;cursor:pointer}
+.go{border:0;background:var(--ink);color:var(--bg);font-weight:600;padding:0 26px;font-size:1rem}
+.go:disabled{opacity:.5;cursor:wait}
+.paste{border:0;background:transparent;color:var(--ink);font-weight:600;padding:0 16px;border-left:1px solid var(--line)}
+.status{min-height:1.5em;margin:14px 2px;font-size:.98rem}
+.status.err{color:var(--err)} .status.ok{color:var(--ok)}
+.card{display:none;margin-top:8px;background:var(--panel);border:1px solid var(--line);border-radius:14px;overflow:hidden}
+.card.show{display:block}
+.head{display:flex;gap:16px;padding:16px;align-items:center}
+.thumb{width:128px;aspect-ratio:16/9;object-fit:cover;border-radius:8px;background:var(--line);flex:none}
+.title{font-weight:600;font-size:1.1rem;line-height:1.25;margin:0 0 4px;overflow-wrap:anywhere}
+.meta{color:var(--muted);font-size:.92rem;margin:0}
+.quals{padding:0 16px 16px}
+.quals h2{font-size:.95rem;font-weight:600;margin:6px 0 10px;color:var(--muted)}
+.chips{display:flex;flex-wrap:wrap;gap:8px;border:0;padding:0;margin:0 0 16px}
+.chip input{position:absolute;opacity:0}
+.chip span{display:inline-block;padding:9px 16px;border:1.5px solid var(--line);border-radius:999px;font-weight:600}
+.chip input:checked+span{background:var(--accent);border-color:var(--accent);color:var(--accent-ink)}
+.chip input:focus-visible+span{outline:3px solid var(--accent);outline-offset:2px}
+.dl{width:100%;border:0;border-radius:10px;background:var(--accent);color:var(--accent-ink);
+    font-weight:800;font-size:1.1rem;padding:15px}
+.dl:disabled{opacity:.55;cursor:wait}
+footer{margin:40px 0 8px;color:var(--muted);font-size:.88rem;line-height:1.5;max-width:60ch}
+@media (max-width:520px){
+  .head{flex-direction:column;align-items:flex-start}.thumb{width:100%}
+  form{flex-wrap:wrap}input[type=url]{flex-basis:100%}
+  .go,.paste{flex:1;padding:14px}.paste{border-left:0;border-top:1px solid var(--line)}
+}
+@media (prefers-reduced-motion:no-preference){.card.show{animation:in .25s ease-out}}
+@keyframes in{from{opacity:0;transform:translateY(6px)}to{opacity:1;transform:none}}
+</style>
+</head>
+<body>
+<main>
+  <h1>Paste a link.<br>Get the video.</h1>
+  <p class="lede">Works with Instagram, Facebook and most other video sites. Pick the quality you want before you download.</p>
+
+  <form id="f">
+    <input id="url" type="url" inputmode="url" placeholder="https://www.instagram.com/reel/..." autocomplete="off" required aria-label="Video link">
+    <button type="button" class="paste" id="paste">Paste</button>
+    <button class="go" id="go">Find video</button>
+  </form>
+  <p class="status" id="status" role="status" aria-live="polite"></p>
+
+  <section class="card" id="card" aria-label="Video found">
+    <div class="head">
+      <img class="thumb" id="thumb" alt="" referrerpolicy="no-referrer">
+      <div><p class="title" id="title"></p><p class="meta" id="meta"></p></div>
+    </div>
+    <div class="quals">
+      <h2 id="qlabel">Quality</h2>
+      <fieldset class="chips" id="chips" aria-labelledby="qlabel"></fieldset>
+      <button class="dl" id="dl" type="button">Download</button>
+    </div>
+  </section>
+
+  <footer>Only download videos you have the right to save. Private or login-only videos won't work unless the server owner has set up cookies.</footer>
+</main>
+
+<script>
+const $ = id => document.getElementById(id);
+let currentUrl = "";
+let currentLinks = null;
+
+function setStatus(msg, kind = "") { const s = $("status"); s.textContent = msg; s.className = "status " + kind; }
+function fmtDuration(sec) {
+  if (!sec) return "";
+  const m = Math.floor(sec / 60), s = Math.floor(sec % 60);
+  return m + ":" + String(s).padStart(2, "0");
+}
+function addChip(value, label, checked) {
+  const l = document.createElement("label"); l.className = "chip";
+  const i = document.createElement("input"); i.type = "radio"; i.name = "q"; i.value = value; i.checked = checked;
+  const s = document.createElement("span"); s.textContent = label;
+  l.append(i, s); $("chips").appendChild(l);
+}
+
+$("paste").onclick = async () => {
+  try { $("url").value = (await navigator.clipboard.readText()).trim(); $("url").focus(); }
+  catch { setStatus("Your browser blocked clipboard access. Paste with Ctrl+V instead.", "err"); }
+};
+
+$("f").onsubmit = async e => {
+  e.preventDefault();
+  const url = $("url").value.trim();
+  $("card").classList.remove("show");
+  setStatus("Looking up the video…");
+  $("go").disabled = true;
+  try {
+    const r = await fetch("/api/info", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ url }) });
+    const d = await r.json();
+    if (!r.ok) throw new Error(d.error || "Something went wrong.");
+    currentUrl = url;
+    $("title").textContent = d.title;
+    $("meta").textContent = [d.uploader, fmtDuration(d.duration)].filter(Boolean).join(" • ");
+    $("thumb").src = d.thumbnail || "";
+    $("thumb").style.display = d.thumbnail ? "" : "none";
+    $("chips").replaceChildren();
+    if (d.direct) {
+      currentLinks = d.links;
+      if (!d.links.length) throw new Error("This link has no single-file download. Use the Docker version of the site (see README).");
+      d.links.forEach((l, i) => addChip(String(i), l.height ? l.height + "p" : "Original", i === 0));
+    } else {
+      currentLinks = null;
+      addChip("best", "Best", true);
+      d.heights.forEach(h => addChip(String(h), h + "p", false));
+      addChip("audio", d.ffmpeg ? "Audio (MP3)" : "Audio only", false);
+    }
+    $("card").classList.add("show");
+    setStatus("");
+  } catch (err) { setStatus(err.message, "err"); }
+  finally { $("go").disabled = false; }
+};
+
+$("dl").onclick = async () => {
+  const q = document.querySelector('input[name="q"]:checked').value;
+  if (currentLinks) {
+    const l = currentLinks[+q];
+    const a = document.createElement("a");
+    a.href = l.url; a.target = "_blank"; a.rel = "noopener noreferrer"; a.download = "video." + l.ext;
+    document.body.appendChild(a); a.click(); a.remove();
+    setStatus("Opened the video. If it plays instead of saving, press and hold it and choose Save video.", "ok");
+    return;
+  }
+  $("dl").disabled = true;
+  setStatus("Preparing your file. Longer videos take a little while…");
+  try {
+    const r = await fetch("/api/download?" + new URLSearchParams({ url: currentUrl, q }));
+    if (!r.ok) throw new Error((await r.json().catch(() => ({}))).error || "Download failed.");
+    const name = decodeURIComponent(r.headers.get("X-Filename") || "video.mp4");
+    const blob = await r.blob();
+    const a = document.createElement("a");
+    a.href = URL.createObjectURL(blob); a.download = name;
+    document.body.appendChild(a); a.click(); a.remove();
+    setTimeout(() => URL.revokeObjectURL(a.href), 10000);
+    setStatus("Saved " + name, "ok");
+  } catch (err) { setStatus(err.message, "err"); }
+  finally { $("dl").disabled = false; }
+};
+</script>
+</body>
+</html>
