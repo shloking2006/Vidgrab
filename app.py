@@ -53,9 +53,28 @@ def check_url(url):
 
 
 def ydl_base():
-    opts = {"quiet": True, "no_warnings": True, "noplaylist": True, "socket_timeout": 20}
-    if COOKIES_FILE:
+    opts = {
+        "quiet": True, 
+        "no_warnings": True, 
+        "noplaylist": True, 
+        "socket_timeout": 20,
+        "extract_flat": False,
+        "prefer_free_formats": True,
+        # This format string prioritizes MP4 video + M4A audio for best compatibility
+        "format_sort": ["bv[ext=mp4]+ba[ext=m4a]/b[ext=mp4]/ba/b", "br", "dai_score", "hasvid", "lang"],
+    }
+    
+    # If a cookies file is provided via env var, use it
+    if COOKIES_FILE and os.path.exists(COOKIES_FILE):
         opts["cookiefile"] = COOKIES_FILE
+    else:
+        # Fallback: Try to grab cookies from Chrome automatically
+        # If you use Firefox/Edge/Safari, change "chrome" to "firefox"/"edge"/"safari"
+        try:
+            opts["cookies_from_browser"] = ("chrome", None)
+        except Exception:
+            pass
+            
     return opts
 
 
